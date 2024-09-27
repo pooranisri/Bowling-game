@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kids Bowling Game</title>
+<style>
+    body { 
+        background: #f0f0f0; 
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        font-family: 'Comic Sans MS', cursive;
+    }
+    canvas { 
+        background: #fff;
+        border: 2px solid #000;
+    }
+    #scoreboard {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(255, 255, 255, 0.8);
+        padding: 10px;
+        border-radius: 5px;
+    }
+    #reset {
+        position: absolute;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 10px;
+        background: #ffcc00;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+</style>
+</head>
+<body>
+
+<canvas id="bowlingCanvas" width="400" height="600"></canvas>
+<div id="scoreboard">Score: <span id="score">0</span></div>
+<button id="reset">New Game</button>
+
+<script>
+const canvas = document.getElementById('bowlingCanvas');
+const ctx = canvas.getContext('2d');
+const scoreDisplay = document.getElementById('score');
+let score = 0;
+let frame = 0;
+const pins = [];
+const ball = { x: canvas.width / 2, y: 550, radius: 10, speedX: 0, speedY: 0 };
+const laneLength = 500;
+let isDragging = false;
+
+function drawLane() {
+    ctx.fillStyle = '#D3D3D3';
+    ctx.fillRect(0, 0, canvas.width, laneLength);
+    ctx.beginPath();
+    ctx.moveTo(0, laneLength);
+    ctx.lineTo(canvas.width, laneLength);
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+}
+
+function drawBall() {
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+    ctx.fillStyle = 'red';
+    ctx.fill();
+    ctx.closePath();
+}
+
+function setupPins() {
+    const pinRadius = 10;
+    const rows = [1, 2, 3, 4];
+    let x = canvas.width / 2;
+    let y = 50;
+    for(let row of rows) {
+        for(let i = 0; i < row; i++) {
+            pins.push({x: x, y: y, radius: pinRadius, knocked: false});
+            x += pinRadius * 3;
+        }
+        x = canvas.width / 2 - (row - 1) * pinRadius * 1.5;
+        y += pinRadius * 2;
+    }
+}
+
+function drawPins() {
+    pins.forEach(pin => {
+        if(!pin.knocked) {
+            ctx.beginPath();
+            ctx.arc(pin.x, pin.y, pin.radius, 0, Math.PI * 2);
+            ctx.fillStyle = 'white';
+            ctx.fill();
+            ctx.strokeStyle = 'black';
+            ctx.stroke();
+        }
+    });
+}
+
+function checkCollision() {
+    pins.forEach((pin, index) => {
+        if(!pin.knocked) {
+            const dx = ball.x - pin.x;
+            const dy = ball.y - pin.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if(distance < ball.radius + pin.radius) {
+                pin.knocked = true;
+                score++;
+                scoreDisplay.textContent = score;
+            }
+        }
+    });
+}
+
+function update() {
+    if(isDragging) return;
+    
+    ball.y += ball.speedY;
+    ball.x += ball.speedX;
+
+    if(ball.y < laneLength || ball.speedY < 0) {
+        checkCollision();
+    } else {
+        resetFrame();
+    }
+
+    if(ball.x - ball.radius < 0 || ball.x + ball.radius > canvas.width) {
+        ball.speedX *= -1;
+    }
+}
+
+function resetFrame() {
+    ball.x = canvas.width / 2;
+    ball.y = 550;
+    ball.speedX = ball.speedY = 0;
+    pins.forEach(pin => pin.knocked = false);
+    frame++;
+    if(frame >= 3) {
+        alert('Game Over! Your score: ' + score);
+        resetGame();
+    }
+}
+
+function resetGame() {
+    score = 0;
+    frame = 0;
+    setupPins();
+    scoreDisplay.textContent = score;
+}
+
+canvas.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    canvas.addEventListener('mousemove', onMouseMove);
+});
+
+canvas.addEventListener('mouseup', (e) => {
+    isDragging = false;
+    canvas.removeEventListener('mousemove', onMouseMove);
+    const angle = Math.atan2(e.clientY - ball.y, e.clientX - ball.x);
+    ball.speedX = Math.cos(angle) * 5;
+    ball.speedY = Math.sin(angle) * 5;
+});
+
+function onMouseMove(e) {
+    if(isDragging) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawLane();
+        drawPins();
+        drawBall();
+        ctx.beginPath();
+        ctx.moveTo(ball.x, ball.y);
+        ctx.lineTo(e.clientX, e.clientY);
+        ctx.stroke();
+    }
+}
+
+document.getElementById('reset').addEventListener('click', resetGame);
+
+function gameLoop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawLane();
+    update();
+    drawPins();
+    drawBall();
+    requestAnimationFrame(gameLoop);
+}
+
+setupPins();
+gameLoop();
+</script>
+
+</body>
+</html>

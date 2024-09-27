@@ -1,0 +1,241 @@
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bowling Game for Kids</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #87CEEB;
+        }
+
+        h1 {
+            font-family: Arial, sans-serif;
+            color: #ff6347;
+            margin: 20px;
+        }
+
+        #gameCanvas {
+            border: 2px solid #000;
+            background-color: #D3D3D3;
+        }
+
+        #scoreboard {
+            font-size: 24px;
+            color: #000;
+            margin-top: 10px;
+        }
+
+        #message {
+            font-size: 24px;
+            color: #ff6347;
+            margin-top: 20px;
+        }
+
+        #newButton {
+            padding: 10px 20px;
+            font-size: 18px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Bowling</h1>
+    <canvas id="gameCanvas" width="1000" height="440"></canvas>
+    <div id="scoreboard">Score: 0</div>
+    <div id="message"></div>
+    <button id="newButton">New Game</button>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const canCtx = canvas.getContext('2d');
+        const ballRadius = 15;
+        let ballX = 500;
+        let ballY = 400;
+        let score = 0;
+        const pins = [];
+        const pinWidth = 20;
+        const pinHeight = 40;
+        let arrowAngle = 0;
+        let ballMoving = false;
+        const ballSpeed = 2;
+        let attempts = 0;
+        let gameOver = false;
+        let arrowVisible = true;
+
+        // Initialize pins in a triangular formation at the top of the alley
+        function initializePins() {
+            pins.length = 0;
+            const rows = 4;
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col <= row; col++) {
+                    pins.push({
+                        x: 500 + (col - row / 2) * (pinWidth + 10),
+                        y: 30 + row * (pinHeight + 10),
+                        knocked: false
+                    });
+                }
+            }
+        }
+
+        function drawBowlingLane() {
+            canCtx.fillStyle = '#D2B48C';
+            canCtx.fillRect(0, 0, canvas.width, canvas.height);
+            canCtx.fillStyle = '#000';
+            canCtx.fillRect(0, 400, canvas.width, 40);
+        }
+
+        function drawBall() {
+            if (!gameOver) {
+                canCtx.fillStyle = 'red';
+                canCtx.beginPath();
+                canCtx.arc(ballX, ballY, ballRadius, 0, Math.PI * 2);
+                canCtx.fill();
+            }
+        }
+
+        function drawDuckPin(x, y) {
+            canCtx.fillStyle = 'white';
+            canCtx.beginPath();
+            canCtx.ellipse(x + pinWidth / 2, y + pinHeight / 2, pinWidth / 2, pinHeight / 1.5, 0, 0, Math.PI * 2);
+            canCtx.fill();
+            canCtx.beginPath();
+            canCtx.arc(x + pinWidth / 2, y, pinWidth / 2, 0, Math.PI * 2);
+            canCtx.fill();
+        }
+
+        function drawPins() {
+            pins.forEach(pin => {
+                if (!pin.knocked) {
+                    drawDuckPin(pin.x, pin.y);
+                }
+            });
+        }
+
+        function drawArrow() {
+            if (arrowVisible && !gameOver) {
+                canCtx.save();
+                canCtx.translate(ballX, ballY);
+                canCtx.rotate(arrowAngle);
+                canCtx.setLineDash([5, 5]);
+                canCtx.strokeStyle = 'white';
+                canCtx.lineWidth = 5;
+                canCtx.beginPath();
+                canCtx.moveTo(0, -5);
+                canCtx.lineTo(100, -5);
+                canCtx.stroke();
+                canCtx.restore();
+                canCtx.setLineDash([]);
+            }
+        }
+
+        function updateScore() {
+            document.getElementById('scoreboard').innerText = `Score: ${score}`;
+        }
+
+        function checkCollision() {
+            pins.forEach(pin => {
+                if (!pin.knocked &&
+                    ballX + ballRadius > pin.x &&
+                    ballX - ballRadius < pin.x + pinWidth &&
+                    ballY + ballRadius > pin.y &&
+                    ballY - ballRadius < pin.y + pinHeight) {
+                    pin.knocked = true;
+                    score++;
+                }
+            });
+        }
+
+        function resetBall() {
+            ballX = 500;
+            ballY = 400;
+        }
+
+        function endGame(message) {
+            gameOver = true;
+            document.getElementById('message').innerText = message;
+            ballMoving = false;
+            arrowVisible = false;
+        }
+
+        function gameLoop() {
+            canCtx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBowlingLane();
+            drawBall();
+            drawPins();
+            drawArrow();
+
+            if (ballMoving) {
+                ballX += ballSpeed * Math.cos(arrowAngle);
+                ballY += ballSpeed * Math.sin(arrowAngle);
+                checkCollision();
+
+                // Check for boundaries
+                if (ballX < 0 || ballX > canvas.width || ballY < 0) {
+                    attempts++;
+                    if (attempts === 3) {
+                        endGame("GAME OVER! You didn't knock down all the pins.");
+                    } else {
+                        resetBall();
+                        arrowVisible = true;
+                    }
+                    ballMoving = false;
+                }
+
+                if (ballY > canvas.height) {
+                    attempts++;
+                    if (score === 10) {
+                        endGame("Congratulations, STRIKE!");
+                    } else {
+                        resetBall();
+                        arrowVisible = true;
+                    }
+                    ballMoving = false;
+                }
+            }
+
+            updateScore();
+            requestAnimationFrame(gameLoop);
+        }
+
+        document.getElementById('newButton').addEventListener('click', () => {
+            score = 0;
+            attempts = 0;
+            gameOver = false;
+            document.getElementById('message').innerText = "";
+            resetBall();
+            initializePins();
+            ballMoving = false;
+            arrowVisible = true;
+            gameLoop();
+        });
+
+        canvas.addEventListener('click', (e) => {
+            if (e.button === 0 && !gameOver) {
+                if (!ballMoving) {
+                    ballMoving = true;
+                    arrowVisible = false;
+                }
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!gameOver && !ballMoving) {
+                const dx = e.clientX - canvas.offsetLeft - ballX;
+                const dy = e.clientY - canvas.offsetTop - ballY;
+                arrowAngle = Math.atan2(dy, dx);
+            }
+        });
+
+        initializePins();
+        gameLoop();
+    </script>
+</body>
+
+</html>
